@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cine Club - Nico & Ani</title>
+  <!-- Vuetify & Material Design Icons CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.x/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.5.2/dist/vuetify.min.css" rel="stylesheet">
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Vue 3 y Vuetify 3 Scripts -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.5.2/dist/vuetify.min.js"></script>
+
+  <script>
+    const { createApp, ref, computed, watch } = Vue;
+    const { createVuetify } = Vuetify;
+
+    const vuetify = createVuetify();
+
+    const app = createApp({
+      template: `
+        <v-app class="bg-grey-darken-4">
+          <!-- Barra de Navegación -->
+          <v-app-bar color="teal-darken-3" elevation="3">
+            <v-app-bar-title class="font-weight-bold">
+              🍿 Cine Club - Nico & Ani
+            </v-app-bar-title>
+            <v-spacer></v-spacer>
+            <v-btn 
+              prepend-icon="mdi-plus" 
+              variant="elevated" 
+              color="amber-accent-4" 
+              class="text-black font-weight-bold mr-3"
+              @click="dialog = true"
+            >
+              Agregar Película
+            </v-btn>
+          </v-app-bar>
+
+          <!-- Contenido Principal -->
+          <v-main>
+            <v-container>
+              <!-- Lista de Películas -->
+              <v-row v-if="peliculas.length > 0">
+                <v-col 
+                  v-for="(pelicula, index) in peliculas" 
+                  :key="index" 
+                  cols="12" sm="6" md="4" lg="3"
+                >
+                  <v-card class="mx-auto my-3 bg-grey-gradient elevation-5 position-relative" max-width="342">
+                    <!-- Botón Eliminar -->
+                    <v-btn
+                      icon="mdi-delete"
+                      size="small"
+                      color="error"
+                      variant="text"
+                      class="position-absolute text-white"
+                      style="top: 5px; right: 5px; z-index: 2; background: rgba(0,0,0,0.4);"
+                      @click="eliminarPelicula(index)"
+                    ></v-btn>
+
+                    <!-- Imagen de la Película -->
+                    <v-img
+                      :src="pelicula.foto || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=500'"
+                      height="400"
+                      cover
+                      class="align-end text-white"
+                    >
+                      <v-card-title class="bg-black-gradient font-weight-bold pb-2">
+                        {{ pelicula.nombre }}
+                      </v-card-title>
+                    </v-img>
+
+                    <!-- Sección de Puntuaciones -->
+                    <v-card-text class="pt-4">
+                      <!-- Puntuación Nico -->
+                      <div class="mb-4">
+                        <div class="d-flex justify-space-between align-center mb-1">
+                          <span class="font-weight-medium text-subtitle-1 text-teal-accent-2">⭐ Nico:</span>
+                          <v-chip size="small" color="teal-accent-2" variant="tonal" class="font-weight-bold">
+                            {{ pelicula.ratingNico || 'Sin puntuar' }}
+                          </v-chip>
+                        </div>
+                        <v-rating
+                          v-model="pelicula.ratingNico"
+                          color="amber-accent-3"
+                          active-color="amber-accent-3"
+                          half-increments
+                          hover
+                          density="comfortable"
+                          size="32"
+                        ></v-rating>
+                      </div>
+
+                      <v-divider class="my-2 border-opacity-25"></v-divider>
+
+                      <!-- Puntuación Ani -->
+                      <div class="mt-3">
+                        <div class="d-flex justify-space-between align-center mb-1">
+                          <span class="font-weight-medium text-subtitle-1 text-pink-accent-2">❤️ Ani:</span>
+                          <v-chip size="small" color="pink-accent-2" variant="tonal" class="font-weight-bold">
+                            {{ pelicula.ratingAni || 'Sin puntuar' }}
+                          </v-chip>
+                        </div>
+                        <v-rating
+                          v-model="pelicula.ratingAni"
+                          color="amber-accent-3"
+                          active-color="amber-accent-3"
+                          half-increments
+                          hover
+                          density="comfortable"
+                          size="32"
+                        ></v-rating>
+                      </div>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+
+              <!-- Estado de lista vacía -->
+              <v-row v-else class="justify-center align-center text-center mt-12">
+                <v-col cols="12">
+                  <v-icon size="80" color="grey-darken-1">mdi-movie-open-outline</v-icon>
+                  <p class="text-h5 text-grey-lighten-1 mt-4">No hay películas agregadas todavía.</p>
+                  <p class="text-subtitle-1 text-grey-darken-1">¡Agreguen la primera para empezar a puntuar!</p>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-main>
+
+          <!-- Diálogo Modal para Añadir Película -->
+          <v-dialog v-model="dialog" max-width="500px">
+            <v-card class="bg-grey-darken-3 text-white">
+              <v-card-title class="text-h5 font-weight-bold pa-4 bg-teal-darken-3">
+                Nueva Película
+              </v-card-title>
+              
+              <v-card-text class="pa-4">
+                <v-form ref="form" @submit.prevent="guardarPelicula">
+                  <v-text-field
+                    v-model="nuevaPelicula.nombre"
+                    label="Nombre de la película"
+                    variant="outlined"
+                    color="teal-accent-3"
+                    required
+                  ></v-text-field>
+
+                  <v-text-field
+                    v-model="nuevaPelicula.foto"
+                    label="URL de la imagen/póster"
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                    variant="outlined"
+                    color="teal-accent-3"
+                    hint="Podés copiar el link de la imagen de Google o IMDb"
+                    persistent-hint
+                  ></v-text-field>
+                </v-form>
+              </v-card-text>
+
+              <v-card-actions class="pa-4 pt-0">
+                <v-spacer></v-spacer>
+                <v-btn color="grey-lighten-1" variant="text" @click="cerrarDialog">Cancelar</v-btn>
+                <v-btn 
+                  color="teal-accent-3" 
+                  variant="elevated" 
+                  class="text-black font-weight-bold" 
+                  @click="guardarPelicula"
+                  :disabled="!nuevaPelicula.nombre"
+                >
+                  Agregar
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-dialog>
+        </v-app>
+      `,
+      setup() {
+        const dialog = ref(false);
+        const peliculas = ref([]);
+
+        // Cargar pelis del LocalStorage al iniciar
+        const datosLocales = localStorage.getItem('cine_club_nico_ani');
+        if (datosLocales) {
+          peliculas.value = JSON.parse(datosLocales);
+        }
+
+        // Escuchar cambios en las películas para guardarlos automáticamente
+        watch(peliculas, (nuevasPelis) => {
+          localStorage.setItem('cine_club_nico_ani', JSON.stringify(nuevasPelis));
+        }, { deep: true });
+
+        const nuevaPelicula = ref({
+          nombre: '',
+          foto: '',
+          ratingNico: 0,
+          ratingAni: 0
+        });
+
+        const guardarPelicula = () => {
+          if (nuevaPelicula.value.nombre.trim() === '') return;
+
+          peliculas.value.push({ ...nuevaPelicula.value });
+          cerrarDialog();
+        };
+
+        const cerrarDialog = () => {
+          dialog.value = false;
+          nuevaPelicula.value = { nombre: '', foto: '', ratingNico: 0, ratingAni: 0 };
+        };
+
+        const eliminarPelicula = (index) => {
+          if (confirm(`¿Seguro que querés borrar "${peliculas.value[index].nombre}"?`)) {
+            peliculas.value.splice(index, 1);
+          }
+        };
+
+        return {
+          dialog,
+          peliculas,
+          nuevaPelicula,
+          guardarPelicula,
+          cerrarDialog,
+          eliminarPelicula
+        };
+      }
+    });
+
+    app.use(vuetify).mount('#app');
+  </script>
+
+  <style>
+    /* Estilos personalizados para la estética modo oscuro cine */
+    .bg-grey-gradient {
+      background: #262626 !important;
+      border: 1px solid #3a3a3a !important;
+    }
+    .bg-black-gradient {
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%) !important;
+    }
+  </style>
+</body>
+</html>
